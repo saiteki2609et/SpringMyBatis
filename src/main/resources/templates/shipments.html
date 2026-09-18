@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common :: head('出荷指示')}"></head>
+<body>
+<div th:replace="~{fragments/common :: header('shipments')}"></div>
+
+<main>
+  <h2>出荷指示</h2>
+  <p class="page-desc">
+    検索は <code class="inline">&lt;where&gt;</code> / <code class="inline">&lt;if&gt;</code> /
+    <code class="inline">&lt;foreach&gt;</code>(ステータスの IN 句) /
+    <code class="inline">&lt;choose&gt;</code>(日付範囲の出し分け)を使った動的SQLです(ShipmentMapper.xml)。
+  </p>
+  <div th:replace="~{fragments/common :: messages}"></div>
+
+  <div class="panel">
+    <form th:action="@{/shipments}" th:object="${criteria}" method="get">
+      <div class="form-row">
+        <div>
+          <label for="customerName">出荷先</label>
+          <input type="text" id="customerName" th:field="*{customerName}" placeholder="部分一致">
+        </div>
+        <div>
+          <label for="warehouseId">出荷元倉庫</label>
+          <select id="warehouseId" th:field="*{warehouseId}">
+            <option value="">(すべて)</option>
+            <option th:each="w : ${warehouses}" th:value="${w.id}" th:text="|${w.code} ${w.name}|">倉庫</option>
+          </select>
+        </div>
+        <div class="narrow">
+          <label for="shipDateFrom">出荷日 From</label>
+          <input type="date" id="shipDateFrom" th:field="*{shipDateFrom}">
+        </div>
+        <div class="narrow">
+          <label for="shipDateTo">出荷日 To</label>
+          <input type="date" id="shipDateTo" th:field="*{shipDateTo}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex: 1 1 100%">
+          <label>ステータス(複数選択可 = IN 句)</label>
+          <span th:each="st : ${allStatuses}" style="margin-right:14px; font-size:13px;">
+            <input type="checkbox" th:field="*{statuses}" th:value="${st}">
+            <label th:for="${#ids.prev('statuses')}" th:text="|${st.label} (${st.code})|"
+                   style="display:inline; color:var(--text);">ステータス</label>
+          </span>
+        </div>
+      </div>
+      <div class="toolbar">
+        <a class="btn btn-sub" th:href="@{/shipments}">条件クリア</a>
+        <span>
+          <button type="submit">検索</button>
+          <a class="btn" th:href="@{/shipments/new}">＋ 出荷指示を作成</a>
+        </span>
+      </div>
+    </form>
+  </div>
+
+  <div class="table-wrap panel">
+    <table>
+      <thead>
+      <tr>
+        <th>出荷番号</th><th>出荷先</th><th>出荷元倉庫</th>
+        <th>出荷予定日</th><th>ステータス</th><th>操作</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="s : ${shipments}">
+        <td><a th:href="@{/shipments/{id}(id=${s.id})}" th:text="${s.shipmentNo}">SH-000</a></td>
+        <td th:text="${s.customerName}">出荷先</td>
+        <td th:text="${s.warehouse.name}">倉庫</td>
+        <td th:text="${#temporals.format(s.shipDate, 'yyyy/MM/dd')}">2026/01/01</td>
+        <td>
+          <span class="badge" th:classappend="'badge-' + ${s.status.code}" th:text="${s.status.label}">状態</span>
+        </td>
+        <td>
+          <a class="btn btn-sub btn-sm" th:href="@{/shipments/{id}(id=${s.id})}">詳細</a>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(shipments)}">
+        <td colspan="6" class="muted">該当する出荷指示がありません。</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>

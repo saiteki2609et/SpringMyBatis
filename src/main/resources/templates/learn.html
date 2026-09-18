@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common :: head('MyBatis 早見表')}"></head>
+<body>
+<div th:replace="~{fragments/common :: header('learn')}"></div>
+
+<main>
+  <h2>MyBatis 早見表(このアプリの実装対応つき)</h2>
+  <p class="page-desc">
+    案件でよく出る書き方を、このアプリのどのファイルに実装してあるかと一緒にまとめています。
+  </p>
+
+  <div class="panel">
+    <h3>0. 全体像</h3>
+    <pre>Controller(web/)      … 画面・APIの入口。パラメータを受け取るだけ
+   ↓
+Service(service/)     … 業務ロジック＋<span class="cm">@Transactional</span>(トランザクション境界)
+   ↓
+Mapper(mapper/)       … インタフェース。実装は MyBatis が自動生成
+   ↓
+SQL                   … アノテーション or resources/mapper/*.xml
+   ↓
+DB(H2)</pre>
+    <p class="muted">
+      Mapper インタフェースに <code class="inline">@Mapper</code> を付けるだけで Spring の Bean になり、
+      Service にコンストラクタインジェクションできる。実装クラスは書かない。
+    </p>
+  </div>
+
+  <div class="panel">
+    <h3>1. アノテーション方式 ―― <code class="inline">ItemMapper.java</code></h3>
+    <pre>@Mapper
+public interface ItemMapper {
+
+    @Select("SELECT id, item_code, item_name FROM item WHERE id = #{id}")
+    Item findById(Integer id);
+
+    @Insert("INSERT INTO item (item_code, item_name) VALUES (#{itemCode}, #{itemName})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")   <span class="cm">// 採番されたIDが引数に入る</span>
+    int insert(Item item);
+
+    @Select("SELECT ... WHERE category = #{category} AND unit_price &gt;= #{min}")
+    List&lt;Item&gt; find(@Param("category") String category, @Param("min") BigDecimal min);
+}</pre>
+    <ul>
+      <li><code class="inline">#{}</code> = プレースホルダ(?)。<strong>値は必ずこちら</strong>。</li>
+      <li><code class="inline">${}</code> = 文字列をそのまま埋め込み。ORDER BY のカラム名など限定的に、
+        必ずホワイトリスト検証したうえで使う(<code class="inline">ItemService.SORT_COLUMNS</code>)。</li>
+      <li>引数が2つ以上なら <code class="inline">@Param</code> が必須。</li>
+      <li>短い SQL・単純CRUD向け。長くなる / 動的SQLが増えるなら XML へ。</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h3>2. XML 方式と resultMap ―― <code class="inline">StockMapper.xml</code></h3>
+    <pre>&lt;mapper namespace="com.example.scm.mapper.StockMapper"&gt;   <span class="cm">// ← インタフェースのFQCNと一致必須</span>
+
+  &lt;resultMap id="stockResultMap" type="Stock"&gt;
+    &lt;id     property="id"       column="id"/&gt;              <span class="cm">// 主キーは &lt;id&gt; で</span>
+    &lt;result property="quantity" column="quantity"/&gt;
+    &lt;association property="item" javaType="Item"
+                 resultMap="itemResultMap" columnPrefix="i_"/&gt;  <span class="cm">// 多対一(1件)</span>
+  &lt;/resultMap&gt;
+
+  &lt;select id="findAll" resultMap="stockResultMap"&gt;
+    SELECT s.id, s.quantity, i.item_code AS i_item_code ...
+    FROM stock s INNER JOIN item i ON i.id = s.item_id
+  &lt;/select&gt;
+&lt;/mapper&gt;</pre>
+    <ul>
+      <li><code class="inline">columnPrefix</code> で JOIN 時の列名衝突を回避。入れ子になると
+        プレフィックスは<strong>連結される</strong>(<code class="inline">d_</code> + <code class="inline">i_</code> = <code class="inline">d_i_</code>)。</li>
+      <li>カラム名とプロパティ名がスネーク↔キャメルの対応なら
+        <code class="inline">map-underscore-to-camel-case: true</code>(application.yml)で自動マッピングされる。</li>
+      <li>よくあるエラー <code class="inline">Invalid bound statement (not found)</code> の原因は
+        ①namespace 不一致 ②メソッド名と id の不一致 ③XML が classpath に無い、のいずれか。</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h3>3. 1対多(collection) ―― <code class="inline">ShipmentMapper.xml</code></h3>
+    <pre>&lt;resultMap id="shipmentWithDetailsResultMap" type="Shipment"&gt;
+  &lt;id     property="id"         column="id"/&gt;
+  &lt;result property="shipmentNo" column="shipment_no"/&gt;
+  &lt;collection property="details" ofType="ShipmentDetail"
+              resultMap="shipmentDetailResultMap" columnPrefix="d_"/&gt;
+&lt;/resultMap&gt;</pre>
+    <p>
+      JOIN するとヘッダ行が明細数だけ重複して返るが、MyBatis が <code class="inline">&lt;id&gt;</code> を
+      キーにして1つのオブジェクトへまとめてくれる。<strong>&lt;id&gt; の書き忘れ</strong>が定番の不具合。
+    </p>
+    <p class="muted">
+      別解として「明細を別SELECTで取る」書き方(<code class="inline">select=</code>属性)もあるが、
+      件数分クエリが飛ぶ(N+1問題)。一覧で使うと性能問題になりやすいので、原則 JOIN で1回にまとめる。
+    </p>
+  </div>
+
+  <div class="panel">
+    <h3>4. 動的SQL</h3>
+    <pre>&lt;where&gt;                                     <span class="cm">// 条件0件ならWHEREごと消える／先頭のANDも消える</span>
+  &lt;if test="criteria.keyword != null"&gt;
+    AND item_name LIKE '%' || #{criteria.keyword} || '%'
+  &lt;/if&gt;
+  &lt;if test="criteria.statuses != null and criteria.statuses.size() &gt; 0"&gt;
+    AND status IN
+    &lt;foreach item="st" collection="criteria.statuses"
+             open="(" separator="," close=")"&gt;#{st}&lt;/foreach&gt;
+  &lt;/if&gt;
+  &lt;choose&gt;                                  <span class="cm">// if / else if 相当。最初に当たった1つだけ</span>
+    &lt;when test="from != null and to != null"&gt; AND ship_date BETWEEN #{from} AND #{to} &lt;/when&gt;
+    &lt;when test="from != null"&gt;                AND ship_date &amp;gt;= #{from} &lt;/when&gt;
+    &lt;otherwise/&gt;
+  &lt;/choose&gt;
+&lt;/where&gt;
+
+&lt;set&gt;                                       <span class="cm">// UPDATE用。末尾のカンマを落としてくれる</span>
+  &lt;if test="itemName != null"&gt;item_name = #{itemName},&lt;/if&gt;
+&lt;/set&gt;</pre>
+    <ul>
+      <li>XML なので <code class="inline">&lt;</code> は <code class="inline">&amp;lt;</code> に書き換える(<code class="inline">&gt;</code> はそのままでも可)。</li>
+      <li>アノテーションでも <code class="inline">&lt;script&gt;...&lt;/script&gt;</code> で囲めば同じ文法が使える
+        (<code class="inline">ItemMapper#search</code>)。</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h3>5. まとめ INSERT(foreach)</h3>
+    <pre>&lt;insert id="insertDetails"&gt;
+  INSERT INTO shipment_detail (shipment_id, item_id, quantity)
+  VALUES
+  &lt;foreach item="d" collection="details" separator=","&gt;
+    (#{shipmentId}, #{d.itemId}, #{d.quantity})
+  &lt;/foreach&gt;
+&lt;/insert&gt;</pre>
+    <p class="muted">
+      1件ずつ INSERT をループするより往復回数が減る。件数が非常に多い場合は
+      ExecutorType.BATCH を使う方法もある。
+    </p>
+  </div>
+
+  <div class="panel">
+    <h3>6. 区分値 ⇔ enum(TypeHandler) ―― <code class="inline">ShipmentStatusTypeHandler.java</code></h3>
+    <pre>@MappedTypes(ShipmentStatus.class)
+public class ShipmentStatusTypeHandler extends BaseTypeHandler&lt;ShipmentStatus&gt; {
+    public void setNonNullParameter(PreparedStatement ps, int i, ShipmentStatus s, JdbcType t) {
+        ps.setString(i, s.getCode());          <span class="cm">// Java → DB ("20")</span>
+    }
+    public ShipmentStatus getNullableResult(ResultSet rs, String column) {
+        return ShipmentStatus.fromCode(rs.getString(column));   <span class="cm">// DB → Java</span>
+    }
+}</pre>
+    <p class="muted">
+      application.yml の <code class="inline">mybatis.type-handlers-package</code> に置けば自動登録され、
+      XML 側に <code class="inline">typeHandler=</code> を書かなくても効く。
+      レガシーDBの区分値カラムを扱うときの定番。
+    </p>
+  </div>
+
+  <div class="panel">
+    <h3>7. トランザクション ―― <code class="inline">ShipmentService#allocate</code></h3>
+    <pre>@Transactional
+public Shipment allocate(Integer id) {
+    Shipment shipment = findById(id);
+    for (ShipmentDetail d : shipment.getDetails()) {
+        int updated = stockMapper.decrease(d.getItemId(), shipment.getWarehouseId(), d.getQuantity());
+        if (updated == 0) {
+            throw new BusinessException("在庫が不足しています");  <span class="cm">// ← ここで全部ロールバック</span>
+        }
+    }
+    shipmentMapper.updateStatus(id, ShipmentStatus.ALLOCATED);
+    return shipment;
+}</pre>
+    <ul>
+      <li><code class="inline">UPDATE ... WHERE quantity &gt;= #{quantity}</code> にして
+        <strong>更新件数0 = 在庫不足</strong>と判定する。SELECTしてからUPDATEするより競合に強い。</li>
+      <li>RuntimeException でロールバック。検査例外(Exception)ではロールバックされない点に注意
+        (必要なら <code class="inline">@Transactional(rollbackFor = Exception.class)</code>)。</li>
+      <li>同一クラス内のメソッドを this 経由で呼ぶと <code class="inline">@Transactional</code> が効かない(自己呼び出し問題)。</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h3>8. テスト ―― <code class="inline">src/test/java</code></h3>
+    <pre>@MybatisTest        <span class="cm">// Mapper と DataSource だけ起動する軽量テスト。デフォルトで毎回ロールバック</span>
+class ItemMapperTest {
+    @Autowired ItemMapper itemMapper;
+}
+
+@SpringBootTest     <span class="cm">// Service まで含めた結合テスト</span>
+@Transactional      <span class="cm">// テストごとにロールバック</span>
+class ShipmentServiceTest { ... }
+
+@WebMvcTest(ItemApiController.class)   <span class="cm">// Controller だけ。Service は @MockBean で差し替え</span></pre>
+    <p class="muted">実行: <code class="inline">mvnw.cmd test</code></p>
+  </div>
+
+  <div class="panel">
+    <h3>9. デバッグの勘所</h3>
+    <ul>
+      <li>発行SQLを見る: <code class="inline">logging.level.com.example.scm.mapper: debug</code>(Mapperのパッケージ単位で出せる)</li>
+      <li>データを直接見る: <a th:href="@{/h2-console}" target="_blank">H2 コンソール</a>
+        (JDBC URL は application.yml と同じ <code class="inline">jdbc:h2:file:./data/scmdb;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1</code>、User <code class="inline">sa</code>、Password 空)</li>
+      <li>マッピングされない: カラム別名とプロパティ名を突き合わせる。<code class="inline">map-underscore-to-camel-case</code> の有無も確認</li>
+      <li>明細が1件しか入らない / 重複する: resultMap の <code class="inline">&lt;id&gt;</code> を確認</li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>

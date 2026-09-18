@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common :: head('商品マスタ')}"></head>
+<body>
+<div th:replace="~{fragments/common :: header('items')}"></div>
+
+<main>
+  <h2>商品マスタ</h2>
+  <p class="page-desc">
+    検索ボタンは jQuery の Ajax で <code class="inline">GET /api/items</code> を呼び、
+    サーバ側は MyBatis の動的SQL(<code class="inline">&lt;where&gt;</code> / <code class="inline">&lt;if&gt;</code>)で
+    条件が入っている項目だけを WHERE 句に足しています。
+  </p>
+  <div th:replace="~{fragments/common :: messages}"></div>
+
+  <div class="hint">
+    条件を変えて検索し、起動中のコンソールに出る SQL を見比べてみてください。
+    条件が0件なら WHERE 句ごと消え、指定した条件だけが AND で連結されます。
+  </div>
+
+  <div class="panel">
+    <h3>検索条件</h3>
+    <div class="form-row">
+      <div>
+        <label for="keyword">キーワード(商品名 / 商品コード)</label>
+        <input type="text" id="keyword" placeholder="例: ルーター">
+      </div>
+      <div>
+        <label for="category">カテゴリ</label>
+        <select id="category">
+          <option value="">(すべて)</option>
+          <option th:each="c : ${categories}" th:value="${c}" th:text="${c}">カテゴリ</option>
+        </select>
+      </div>
+      <div class="narrow">
+        <label for="minPrice">単価(下限)</label>
+        <input type="number" id="minPrice" min="0" step="100">
+      </div>
+      <div class="narrow">
+        <label for="maxPrice">単価(上限)</label>
+        <input type="number" id="maxPrice" min="0" step="100">
+      </div>
+      <div class="narrow">
+        <label for="sort">並び順</label>
+        <select id="sort">
+          <option value="code">商品コード</option>
+          <option value="name">商品名</option>
+          <option value="price">単価が高い順</option>
+          <option value="category">カテゴリ</option>
+        </select>
+      </div>
+      <div class="narrow">
+        <button type="button" id="btnSearch">検索</button>
+      </div>
+      <div class="narrow">
+        <button type="button" id="btnClear" class="btn-sub">クリア</button>
+      </div>
+    </div>
+    <p class="muted" id="searchInfo"></p>
+  </div>
+
+  <div class="toolbar">
+    <h3 style="margin:0">検索結果 <span id="resultCount" class="muted"></span></h3>
+    <a class="btn" th:href="@{/items/new}">＋ 商品を登録</a>
+  </div>
+
+  <div class="table-wrap panel">
+    <table id="itemTable">
+      <thead>
+      <tr>
+        <th>商品コード</th><th>商品名</th><th>カテゴリ</th>
+        <th class="num">単価</th><th class="num">安全在庫</th><th>操作</th>
+      </tr>
+      </thead>
+      <tbody>
+      <!-- 初期表示はサーバ側レンダリング。検索すると jQuery が中身を差し替える -->
+      <tr th:each="i : ${items}">
+        <td th:text="${i.itemCode}">コード</td>
+        <td th:text="${i.itemName}">商品名</td>
+        <td th:text="${i.category}">カテゴリ</td>
+        <td class="num" th:text="${#numbers.formatDecimal(i.unitPrice, 1, 'COMMA', 0, 'POINT')}">0</td>
+        <td class="num" th:text="${i.safetyStock}">0</td>
+        <td>
+          <a class="btn btn-sub btn-sm" th:href="@{/items/{id}/edit(id=${i.id})}">編集</a>
+          <form class="inline-form" th:action="@{/items/{id}/delete(id=${i.id})}" method="post"
+                onsubmit="return confirm('削除しますか?');">
+            <button type="submit" class="btn-danger btn-sm">削除</button>
+          </form>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>

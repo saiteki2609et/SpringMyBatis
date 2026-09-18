@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common :: head('エラー')}"></head>
+<body>
+<div th:replace="~{fragments/common :: header('')}"></div>
+
+<main>
+  <h2>処理できませんでした</h2>
+  <div class="alert alert-ng" th:text="${errorMessage}">エラー</div>
+  <p><a class="btn btn-sub" th:href="@{/}">ダッシュボードへ戻る</a></p>
+</main>
+</body>
+</html>

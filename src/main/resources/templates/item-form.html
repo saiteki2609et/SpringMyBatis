@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common :: head('商品登録・編集')}"></head>
+<body>
+<div th:replace="~{fragments/common :: header('items')}"></div>
+
+<main>
+  <h2 th:text="${mode == 'create'} ? '商品の新規登録' : '商品の編集'">商品の新規登録</h2>
+  <p class="page-desc">
+    登録は <code class="inline">@Insert</code> + <code class="inline">@Options(useGeneratedKeys=true)</code>、
+    更新は <code class="inline">@Update</code>(ItemMapper.java)。入力チェックは Bean Validation です。
+  </p>
+  <div th:replace="~{fragments/common :: messages}"></div>
+
+  <div class="panel">
+    <form th:action="${mode == 'create'} ? @{/items} : @{/items/{id}(id=${item.id})}"
+          th:object="${item}" method="post">
+      <div class="form-row">
+        <div>
+          <label for="itemCode">商品コード *</label>
+          <input type="text" id="itemCode" th:field="*{itemCode}" placeholder="ITM-9001">
+          <div class="field-error" th:if="${#fields.hasErrors('itemCode')}" th:errors="*{itemCode}"></div>
+        </div>
+        <div>
+          <label for="itemName">商品名 *</label>
+          <input type="text" id="itemName" th:field="*{itemName}">
+          <div class="field-error" th:if="${#fields.hasErrors('itemName')}" th:errors="*{itemName}"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label for="category">カテゴリ *</label>
+          <input type="text" id="category" th:field="*{category}" list="categoryList">
+          <datalist id="categoryList">
+            <option value="ネットワーク機器"></option>
+            <option value="ケーブル"></option>
+            <option value="モバイル"></option>
+            <option value="映像機器"></option>
+            <option value="周辺機器"></option>
+          </datalist>
+          <div class="field-error" th:if="${#fields.hasErrors('category')}" th:errors="*{category}"></div>
+        </div>
+        <div class="narrow">
+          <label for="unitPrice">単価 *</label>
+          <input type="number" id="unitPrice" th:field="*{unitPrice}" step="1" min="0">
+          <div class="field-error" th:if="${#fields.hasErrors('unitPrice')}" th:errors="*{unitPrice}"></div>
+        </div>
+        <div class="narrow">
+          <label for="safetyStock">安全在庫 *</label>
+          <input type="number" id="safetyStock" th:field="*{safetyStock}" step="1" min="0">
+          <div class="field-error" th:if="${#fields.hasErrors('safetyStock')}" th:errors="*{safetyStock}"></div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <a class="btn btn-sub" th:href="@{/items}">キャンセル</a>
+        <button type="submit" th:text="${mode == 'create'} ? '登録する' : '更新する'">登録する</button>
+      </div>
+    </form>
+  </div>
+</main>
+</body>
+</html>

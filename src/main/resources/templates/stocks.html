@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common :: head('在庫照会')}"></head>
+<body>
+<div th:replace="~{fragments/common :: header('stocks')}"></div>
+
+<main>
+  <h2>在庫照会 / 入庫</h2>
+  <p class="page-desc">
+    在庫一覧は <code class="inline">stock × item × warehouse</code> の3テーブルJOINを
+    <code class="inline">&lt;association&gt;</code> でネストしたオブジェクトに詰めています(StockMapper.xml)。
+  </p>
+  <div th:replace="~{fragments/common :: messages}"></div>
+
+  <div class="hint">
+    入庫すると <code class="inline">UPDATE stock SET quantity = quantity + ?</code> が走ります。
+    対象行が無い場合(更新件数0件)は INSERT にフォールバックする実装です(StockService#receive)。
+  </div>
+
+  <div class="panel">
+    <div class="form-row">
+      <div>
+        <label for="warehouseFilter">倉庫で絞り込み</label>
+        <select id="warehouseFilter">
+          <option value="">(すべて)</option>
+          <option th:each="w : ${warehouses}" th:value="${w.id}" th:text="|${w.code} ${w.name}|">倉庫</option>
+        </select>
+      </div>
+      <div class="narrow">
+        <button type="button" id="btnReload" class="btn-sub">再読込</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>入庫登録(Ajax)</h3>
+    <div class="form-row">
+      <div>
+        <label for="receiveItem">商品</label>
+        <select id="receiveItem">
+          <option th:each="i : ${items}" th:value="${i.id}" th:text="|${i.itemCode} ${i.itemName}|">商品</option>
+        </select>
+      </div>
+      <div>
+        <label for="receiveWarehouse">入庫先倉庫</label>
+        <select id="receiveWarehouse">
+          <option th:each="w : ${warehouses}" th:value="${w.id}" th:text="|${w.code} ${w.name}|">倉庫</option>
+        </select>
+      </div>
+      <div class="narrow">
+        <label for="receiveQty">数量</label>
+        <input type="number" id="receiveQty" value="10" min="1" step="1">
+      </div>
+      <div class="narrow">
+        <button type="button" id="btnReceive">入庫する</button>
+      </div>
+    </div>
+    <p class="muted" id="receiveInfo"></p>
+  </div>
+
+  <div class="table-wrap panel">
+    <table id="stockTable">
+      <thead>
+      <tr>
+        <th>倉庫</th><th>商品コード</th><th>商品名</th><th>カテゴリ</th>
+        <th class="num">在庫数</th><th class="num">安全在庫</th><th>更新日時</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="s : ${stocks}">
+        <td th:text="${s.warehouse.name}">倉庫</td>
+        <td th:text="${s.item.itemCode}">コード</td>
+        <td th:text="${s.item.itemName}">商品名</td>
+        <td th:text="${s.item.category}">カテゴリ</td>
+        <td class="num" th:text="${s.quantity}"
+            th:classappend="${s.belowSafetyStock} ? 'shortage'">0</td>
+        <td class="num" th:text="${s.item.safetyStock}">0</td>
+        <td th:text="${#temporals.format(s.updatedAt, 'yyyy/MM/dd HH:mm')}">-</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>

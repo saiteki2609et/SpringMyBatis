@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  共通フラグメント置き場。
+  各画面から th:replace / th:insert で差し込む。
+-->
+<head th:fragment="head(pageTitle)">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="|[SCM学習] ${pageTitle}|">SCM学習</title>
+  <link rel="stylesheet" th:href="@{/css/style.css}">
+  <script th:src="@{/js/jquery-3.7.1.min.js}"></script>
+  <script th:src="@{/js/app.js}" defer></script>
+</head>
+
+<body>
+
+<div th:fragment="header(active)">
+  <header class="app-header">
+    <h1>物流管理システム(学習用)</h1>
+    <span class="sub">Spring Boot 3 / MyBatis 3 / H2 / Thymeleaf / jQuery / JUnit 5</span>
+  </header>
+  <nav class="app-nav">
+    <a th:href="@{/}"          th:classappend="${active == 'home'} ? 'active'">ダッシュボード</a>
+    <a th:href="@{/items}"     th:classappend="${active == 'items'} ? 'active'">商品マスタ</a>
+    <a th:href="@{/stocks}"    th:classappend="${active == 'stocks'} ? 'active'">在庫照会</a>
+    <a th:href="@{/shipments}" th:classappend="${active == 'shipments'} ? 'active'">出荷指示</a>
+    <a th:href="@{/learn}"     th:classappend="${active == 'learn'} ? 'active'">MyBatis 早見表</a>
+    <a th:href="@{/h2-console}" target="_blank">H2 コンソール</a>
+  </nav>
+</div>
+
+<!-- フラッシュメッセージ / エラーメッセージ -->
+<div th:fragment="messages">
+  <div class="alert alert-ok" th:if="${message}" th:text="${message}"></div>
+  <div class="alert alert-ng" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+</div>
+
+</body>
+</html>

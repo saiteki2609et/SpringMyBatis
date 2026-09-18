@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common :: head('出荷指示 詳細')}"></head>
+<body>
+<div th:replace="~{fragments/common :: header('shipments')}"></div>
+
+<main>
+  <h2>
+    出荷指示 <span th:text="${shipment.shipmentNo}">SH-000</span>
+    <span class="badge" th:classappend="'badge-' + ${shipment.status.code}" th:text="${shipment.status.label}">状態</span>
+  </h2>
+  <p class="page-desc">
+    この画面のデータは <code class="inline">ShipmentMapper.findById</code> が
+    ヘッダ・明細・商品を <strong>1回の SQL</strong> で取得し、
+    <code class="inline">&lt;collection&gt;</code> で明細リストに組み立てた結果です(N+1 を起こさない書き方)。
+  </p>
+  <div th:replace="~{fragments/common :: messages}"></div>
+  <div class="alert alert-ng" id="ajaxError" style="display:none"></div>
+  <div class="alert alert-ok" id="ajaxOk" style="display:none"></div>
+
+  <div class="panel">
+    <dl class="kv">
+      <dt>出荷番号</dt><dd th:text="${shipment.shipmentNo}">-</dd>
+      <dt>出荷先</dt><dd th:text="${shipment.customerName}">-</dd>
+      <dt>出荷元倉庫</dt><dd th:text="|${shipment.warehouse.code} ${shipment.warehouse.name}|">-</dd>
+      <dt>出荷予定日</dt><dd th:text="${#temporals.format(shipment.shipDate, 'yyyy/MM/dd')}">-</dd>
+      <dt>ステータス</dt>
+      <dd>
+        <span class="badge" id="statusBadge"
+              th:classappend="'badge-' + ${shipment.status.code}"
+              th:text="${shipment.status.label}">状態</span>
+      </dd>
+      <dt>備考</dt><dd th:text="${shipment.remarks} ?: '-'">-</dd>
+      <dt>登録日時</dt><dd th:text="${#temporals.format(shipment.createdAt, 'yyyy/MM/dd HH:mm')}">-</dd>
+    </dl>
+  </div>
+
+  <div class="panel">
+    <h3>明細(合計 <span th:text="${shipment.totalQuantity}">0</span> 点)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+        <tr><th>商品コード</th><th>商品名</th><th>カテゴリ</th><th class="num">単価</th><th class="num">数量</th><th class="num">金額</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="d : ${shipment.details}">
+          <td th:text="${d.item.itemCode}">-</td>
+          <td th:text="${d.item.itemName}">-</td>
+          <td th:text="${d.item.category}">-</td>
+          <td class="num" th:text="${#numbers.formatDecimal(d.item.unitPrice, 1, 'COMMA', 0, 'POINT')}">0</td>
+          <td class="num" th:text="${d.quantity}">0</td>
+          <td class="num" th:text="${#numbers.formatDecimal(d.item.unitPrice * d.quantity, 1, 'COMMA', 0, 'POINT')}">0</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" th:attr="data-shipment-id=${shipment.id}" id="actionPanel">
+    <h3>ステータス操作</h3>
+    <p class="muted">
+      「引当」は在庫を減らし、ステータスを引当済にします(1トランザクション)。
+      在庫が足りなければ全件ロールバックされ、在庫は1つも減りません。
+    </p>
+    <p>
+      <button type="button" class="js-action" data-action="allocate">在庫引当(Ajax)</button>
+      <button type="button" class="js-action" data-action="ship">出荷確定(Ajax)</button>
+      <button type="button" class="js-action btn-sub" data-action="cancel">取消(Ajax)</button>
+    </p>
+    <hr style="border:none; border-top:1px solid var(--border); margin:16px 0;">
+    <p class="muted">こちらは通常のフォーム POST 版(Ajax を使わない画面遷移パターン)。</p>
+    <form class="inline-form" th:action="@{/shipments/{id}/allocate(id=${shipment.id})}" method="post">
+      <button type="submit" class="btn-sub btn-sm">引当(POST)</button>
+    </form>
+    <form class="inline-form" th:action="@{/shipments/{id}/delete(id=${shipment.id})}" method="post"
+          onsubmit="return confirm('削除しますか? 引当済の場合は在庫を戻します。');">
+      <button type="submit" class="btn-danger btn-sm">削除</button>
+    </form>
+  </div>
+
+  <p>
+    <a class="btn btn-sub" th:href="@{/shipments}">一覧へ戻る</a>
+    <a class="btn btn-sub" th:href="@{/api/shipments/{id}(id=${shipment.id})}" target="_blank">この出荷指示の JSON を見る</a>
+  </p>
+</main>
+</body>
+</html>

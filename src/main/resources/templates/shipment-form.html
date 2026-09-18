@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common :: head('出荷指示の作成')}"></head>
+<body>
+<div th:replace="~{fragments/common :: header('shipments')}"></div>
+
+<main>
+  <h2>出荷指示の作成</h2>
+  <p class="page-desc">
+    登録するとヘッダ1件＋明細N件を<strong>1トランザクション</strong>で INSERT します。
+    明細は <code class="inline">&lt;foreach&gt;</code> で
+    <code class="inline">VALUES (...),(...),(...)</code> の形にまとめて1文で流します。
+  </p>
+  <div th:replace="~{fragments/common :: messages}"></div>
+
+  <div class="panel">
+    <form th:action="@{/shipments}" th:object="${shipment}" method="post" id="shipmentForm">
+      <div class="form-row">
+        <div>
+          <label for="customerName">出荷先 *</label>
+          <input type="text" id="customerName" th:field="*{customerName}" placeholder="株式会社◯◯">
+          <div class="field-error" th:if="${#fields.hasErrors('customerName')}" th:errors="*{customerName}"></div>
+        </div>
+        <div>
+          <label for="warehouseId">出荷元倉庫 *</label>
+          <select id="warehouseId" th:field="*{warehouseId}">
+            <option value="">(選択してください)</option>
+            <option th:each="w : ${warehouses}" th:value="${w.id}" th:text="|${w.code} ${w.name}|">倉庫</option>
+          </select>
+          <div class="field-error" th:if="${#fields.hasErrors('warehouseId')}" th:errors="*{warehouseId}"></div>
+        </div>
+        <div class="narrow">
+          <label for="shipDate">出荷予定日 *</label>
+          <input type="date" id="shipDate" th:field="*{shipDate}">
+          <div class="field-error" th:if="${#fields.hasErrors('shipDate')}" th:errors="*{shipDate}"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1 1 100%">
+          <label for="remarks">備考</label>
+          <input type="text" id="remarks" th:field="*{remarks}">
+        </div>
+      </div>
+
+      <h3>明細</h3>
+      <div class="field-error" th:if="${#fields.hasErrors('details')}" th:errors="*{details}"></div>
+      <div class="table-wrap">
+        <table id="detailTable">
+          <thead>
+          <tr>
+            <th style="width:60%">商品</th>
+            <th class="num" style="width:20%">数量</th>
+            <th style="width:20%">操作</th>
+          </tr>
+          </thead>
+          <tbody id="detailBody">
+          <tr th:each="d, stat : *{details}" class="detail-row">
+            <td>
+              <select th:field="*{details[__${stat.index}__].itemId}">
+                <option value="">(選択してください)</option>
+                <option th:each="i : ${items}" th:value="${i.id}" th:text="|${i.itemCode} ${i.itemName}|">商品</option>
+              </select>
+            </td>
+            <td>
+              <input type="number" min="1" step="1" th:field="*{details[__${stat.index}__].quantity}">
+            </td>
+            <td>
+              <button type="button" class="btn-danger btn-sm btn-remove-row">削除</button>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <button type="button" id="btnAddRow" class="btn-sub">＋ 明細を追加</button>
+      </p>
+
+      <div class="toolbar">
+        <a class="btn btn-sub" th:href="@{/shipments}">キャンセル</a>
+        <button type="submit">登録する</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- jQuery が明細行を増やすときに使うひな形。__INDEX__ を実際の添字に置き換える -->
+  <script type="text/template" id="detailRowTemplate">
+    <tr class="detail-row">
+      <td>
+        <select name="details[__INDEX__].itemId">
+          <option value="">(選択してください)</option>
+          <th:block th:each="i : ${items}">
+            <option th:value="${i.id}" th:text="|${i.itemCode} ${i.itemName}|">商品</option>
+          </th:block>
+        </select>
+      </td>
+      <td>
+        <input type="number" min="1" step="1" name="details[__INDEX__].quantity" value="1">
+      </td>
+      <td>
+        <button type="button" class="btn-danger btn-sm btn-remove-row">削除</button>
+      </td>
+    </tr>
+  </script>
+</main>
+</body>
+</html>

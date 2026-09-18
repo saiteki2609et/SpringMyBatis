@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common :: head('ダッシュボード')}"></head>
+<body>
+<div th:replace="~{fragments/common :: header('home')}"></div>
+
+<main>
+  <h2>ダッシュボード</h2>
+  <p class="page-desc">
+    出荷ステータス別の件数(<code class="inline">GROUP BY</code> + resultMap)と、安全在庫割れの在庫
+    (<code class="inline">JOIN</code> + association)を MyBatis で取得しています。
+  </p>
+  <div th:replace="~{fragments/common :: messages}"></div>
+
+  <div class="hint">
+    まずは <strong>出荷指示</strong> 画面で「新規登録 → 引当 → 出荷」を一周してみてください。
+    コンソールに実際に発行された SQL とバインド値が出力されます。
+  </div>
+
+  <div class="cards">
+    <div class="card" th:each="sc : ${statusCounts}">
+      <div class="label" th:text="${sc.label}">ステータス</div>
+      <div class="value" th:text="${sc.count}">0</div>
+    </div>
+    <div class="card" th:if="${#lists.isEmpty(statusCounts)}">
+      <div class="label">出荷指示</div>
+      <div class="value">0</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>安全在庫を下回っている在庫</h3>
+    <p class="muted">
+      SQL: <code class="inline">SELECT ... FROM stock s JOIN item i ... WHERE s.quantity &lt; i.safety_stock</code>
+      (StockMapper.xml の findBelowSafetyStock)
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+        <tr>
+          <th>倉庫</th><th>商品コード</th><th>商品名</th>
+          <th class="num">在庫数</th><th class="num">安全在庫</th><th class="num">不足数</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="s : ${shortages}">
+          <td th:text="${s.warehouse.name}">倉庫</td>
+          <td th:text="${s.item.itemCode}">コード</td>
+          <td th:text="${s.item.itemName}">商品名</td>
+          <td class="num shortage" th:text="${s.quantity}">0</td>
+          <td class="num" th:text="${s.item.safetyStock}">0</td>
+          <td class="num" th:text="${s.item.safetyStock - s.quantity}">0</td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(shortages)}">
+          <td colspan="6" class="muted">安全在庫割れはありません。</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>この学習アプリでできること</h3>
+    <ul>
+      <li><strong>アノテーション方式</strong>の Mapper: <code class="inline">ItemMapper.java</code>(@Select / @Insert / &lt;script&gt;動的SQL)</li>
+      <li><strong>XML 方式</strong>の Mapper: <code class="inline">StockMapper.xml</code>(resultMap / association / include)、
+        <code class="inline">ShipmentMapper.xml</code>(collection / foreach / choose)</li>
+      <li><strong>独自 TypeHandler</strong>: 出荷ステータスの enum ⇔ コード値変換</li>
+      <li><strong>トランザクション</strong>: 出荷引当(在庫減算＋ステータス更新)を1トランザクションで実行</li>
+      <li><strong>JUnit 5</strong>: <code class="inline">@MybatisTest</code> による Mapper 単体テストと、サービスの結合テスト</li>
+      <li><strong>jQuery</strong>: 商品検索・在庫入庫・出荷ステータス操作を Ajax で実行</li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>
