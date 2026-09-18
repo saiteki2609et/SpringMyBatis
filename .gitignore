@@ -1,0 +1,15 @@
+target/
+data/
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# Maven Wrapper が展開する Maven 本体
+.mvn/wrapper/maven-wrapper.jar

@@ -1,0 +1,62 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: scm-study
+
+  # --- H2 (ファイルモード) ---------------------------------------------
+  # ./data/scmdb.mv.db に保存される。消したい場合は data フォルダごと削除する。
+  # AUTO_SERVER=TRUE にすると、アプリ起動中でも外部ツールから同じDBに接続できる。
+  datasource:
+    url: jdbc:h2:file:./data/scmdb;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  # schema.sql / data.sql を毎回実行する。
+  # どちらも「あれば何もしない」書き方にしてあるので、既存データは消えない。
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+
+  # http://localhost:8080/h2-console から SQL を直接叩ける。
+  # ログイン画面の JDBC URL / ユーザー名には上の spring.datasource の値が
+  # 既定で入るようにしてある(com.example.scm.config.H2ConsoleConfig)。
+  # パスワードは空のまま Connect すればつながる。
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
+  thymeleaf:
+    cache: false
+
+  mvc:
+    format:
+      date: iso   # <input type="date"> の yyyy-MM-dd を LocalDate へバインドする
+
+# --- MyBatis ----------------------------------------------------------
+mybatis:
+  # XML マッパーの置き場所
+  mapper-locations: classpath:mapper/*.xml
+  # XML の type="Item" のようにクラス名だけで書けるようにする
+  type-aliases-package: com.example.scm.domain
+  # 独自 TypeHandler(ShipmentStatusTypeHandler)を自動登録
+  type-handlers-package: com.example.scm.typehandler
+  configuration:
+    # item_code -> itemCode の自動変換。これが無いと resultMap を全部書く羽目になる
+    map-underscore-to-camel-case: true
+    # SELECT した値が NULL でも setter を呼ぶ(Map 受けのときに効く)
+    call-setters-on-nulls: true
+    # 実行SQLとパラメータをログに出す(学習には必須級)
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+logging:
+  level:
+    # Mapper のパッケージを debug にすると、発行SQL・バインド値・取得件数が出る
+    com.example.scm.mapper: debug
+    org.springframework.jdbc.datasource.init: info
