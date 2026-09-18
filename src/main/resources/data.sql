@@ -33,19 +33,24 @@ SELECT * FROM (
 WHERE NOT EXISTS (SELECT 1 FROM item);
 
 -- 在庫。商品コード・倉庫コードで引き当てるので、ID の値に依存しない
+-- 数量は「下のサンプル出荷指示を処理し終えた後の状態」にしてある。
+-- 出荷済(30)・引当済(20)の伝票の明細分は、すでに在庫から引かれている前提。
+--   SH-20260901-001(出荷済): ITM-1001 x10, ITM-2001 x50 を WH01 から引当済
+--   SH-20260910-001(引当済): ITM-1002 x5,  ITM-3001 x100 を WH02 から引当済
+--   SH-20260915-001(登録済): 未引当のため在庫は減っていない
 INSERT INTO stock (item_id, warehouse_id, quantity)
 SELECT i.id, w.id, src.quantity
 FROM (
-  SELECT 'ITM-1001' AS item_code, 'WH01' AS wh_code, 120 AS quantity UNION ALL
+  SELECT 'ITM-1001' AS item_code, 'WH01' AS wh_code, 110 AS quantity UNION ALL  -- 120 - 10(出荷済)
   SELECT 'ITM-1001', 'WH02', 45   UNION ALL
   SELECT 'ITM-1002', 'WH01', 18   UNION ALL
-  SELECT 'ITM-1002', 'WH02', 60   UNION ALL
+  SELECT 'ITM-1002', 'WH02', 55   UNION ALL  -- 60 - 5(引当済)
   SELECT 'ITM-1003', 'WH01', 230  UNION ALL
   SELECT 'ITM-1003', 'WH03', 12   UNION ALL
-  SELECT 'ITM-2001', 'WH01', 850  UNION ALL
+  SELECT 'ITM-2001', 'WH01', 800  UNION ALL  -- 850 - 50(出荷済)
   SELECT 'ITM-2001', 'WH02', 420  UNION ALL
   SELECT 'ITM-2002', 'WH01', 95   UNION ALL
-  SELECT 'ITM-3001', 'WH02', 1200 UNION ALL
+  SELECT 'ITM-3001', 'WH02', 1100 UNION ALL  -- 1200 - 100(引当済)
   SELECT 'ITM-3002', 'WH01', 8    UNION ALL
   SELECT 'ITM-3002', 'WH03', 22   UNION ALL
   SELECT 'ITM-4001', 'WH02', 40   UNION ALL
