@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.scm.mapper.ShipmentMapper">
+
+  <resultMap id="itemResultMap" type="Item">
+    <id     property="id"        column="id"/>
+    <result property="itemCode"  column="item_code"/>
+    <result property="itemName"  column="item_name"/>
+    <result property="category"  column="category"/>
+    <result property="unitPrice" column="unit_price"/>
+  </resultMap>
+
+  <resultMap id="warehouseResultMap" type="Warehouse">
+    <id     property="id"   column="id"/>
+    <result property="code" column="code"/>
+    <result property="name" column="name"/>
+  </resultMap>
+
+  <!--
+    明細の resultMap。中で item を association している。
+    columnPrefix は入れ子になるほど連結される点に注意:
+    shipment(collection columnPrefix="d_") → detail(association columnPrefix="i_")
+    となるので、実際に参照される列は "d_i_item_name" のようになる。
+    だから SELECT 側でも d_i_ という別名を付けている。
+  -->
+  <resultMap id="shipmentDetailResultMap" type="ShipmentDetail">
+    <id     property="id"         column="id"/>
+    <result property="shipmentId" column="shipment_id"/>
+    <result property="itemId"     column="item_id"/>
+    <result property="quantity"   column="quantity"/>
+    <association property="item" javaType="Item" resultMap="itemResultMap" columnPrefix="i_"/>
+  </resultMap>
+
+  <!--
+    collection = N件ぶら下げる(一対多)。
+    ヘッダ行が明細数だけ重複して返ってくるが、MyBatis が <id> を手がかりに
+    「同じ id のヘッダは1オブジェクト」とまとめてくれる。
+    ※ <id> を書き忘れると明細がうまくまとまらないので必ず書く。
+  -->
+  <resultMap id="shipmentWithDetailsResultMap" type="Shipment">
+    <id     property="id"           column="id"/>
+    <result property="shipmentNo"   column="shipment_no"/>
+    <result property="customerName" column="customer_name"/>
+    <result property="warehouseId"  column="warehouse_id"/>
+    <!-- status は VARCHAR の "10"/"20" だが ShipmentStatusTypeHandler が enum に変換する -->
+    <result property="status"       column="status"/>
+    <result property="shipDate"     column="ship_date"/>
+    <result property="remarks"      column="remarks"/>
+    <result property="createdAt"    column="created_at"/>
+    <association property="warehouse" javaType="Warehouse" resultMap="warehouseResultMap" columnPrefix="w_"/>
+    <collection  property="details"  ofType="ShipmentDetail" resultMap="shipmentDetailResultMap" columnPrefix="d_"/>
+  </resultMap>
+
+  <!-- 明細を持たないヘッダのみの resultMap(一覧用) -->
+  <resultMap id="shipmentHeaderResultMap" type="Shipment">
+    <id     property="id"           column="id"/>
+    <result property="shipmentNo"   column="shipment_no"/>
+    <result property="customerName" column="customer_name"/>
+    <result property="warehouseId"  column="warehouse_id"/>
+    <result property="status"       column="status"/>
+    <result property="shipDate"     column="ship_date"/>
+    <result property="remarks"      column="remarks"/>
+    <result property="createdAt"    column="created_at"/>
+    <association property="warehouse" javaType="Warehouse" resultMap="warehouseResultMap" columnPrefix="w_"/>
+  </resultMap>
+
+  <sql id="shipmentHeaderColumns">
+    sh.id, sh.shipment_no, sh.customer_name, sh.warehouse_id, sh.status,
+    sh.ship_date, sh.remarks, sh.created_at,
+    w.id AS w_id, w.code AS w_code, w.name AS w_name
+  </sql>
+
+  <!-- ヘッダ＋明細＋商品を 1回の SQL(JOIN) で取得 = N+1 問題を避ける書き方 -->
+  <select id="findById" resultMap="shipmentWithDetailsResultMap">
+    SELECT
+      <include refid="shipmentHeaderColumns"/>,
+      d.id          AS d_id,
+      d.shipment_id AS d_shipment_id,
+      d.item_id     AS d_item_id,
+      d.quantity    AS d_quantity,
+      i.id          AS d_i_id,
+      i.item_code   AS d_i_item_code,
+      i.item_name   AS d_i_item_name,
+      i.category    AS d_i_category,
+      i.unit_price  AS d_i_unit_price
+    FROM shipment sh
+    INNER JOIN warehouse w ON w.id = sh.warehouse_id
+    LEFT  JOIN shipment_detail d ON d.shipment_id = sh.id
+    LEFT  JOIN item i ON i.id = d.item_id
+    WHERE sh.id = #{id}
+    ORDER BY d.id
+  </select>
+
+  <!--
+    検索。<where> は先頭の AND/OR を自動で削り、条件が0件なら WHERE ごと消す。
+    <foreach> は IN 句の組み立て。collection にはパラメータ名を書く。
+  -->
+  <select id="search" resultMap="shipmentHeaderResultMap">
+    SELECT <include refid="shipmentHeaderColumns"/>
+    FROM shipment sh
+    INNER JOIN warehouse w ON w.id = sh.warehouse_id
+    <where>
+      <if test="criteria.customerName != null">
+        AND LOWER(sh.customer_name) LIKE '%' || LOWER(#{criteria.customerName}) || '%'
+      </if>
+      <if test="criteria.warehouseId != null">
+        AND sh.warehouse_id = #{criteria.warehouseId}
+      </if>
+      <if test="criteria.statuses != null and criteria.statuses.size() > 0">
+        AND sh.status IN
+        <foreach item="st" collection="criteria.statuses" open="(" separator="," close=")">
+          #{st}
+        </foreach>
+      </if>
+      <!-- choose は Java の switch/if-else if 相当。上から最初にマッチした1つだけ使われる -->
+      <choose>
+        <when test="criteria.shipDateFrom != null and criteria.shipDateTo != null">
+          AND sh.ship_date BETWEEN #{criteria.shipDateFrom} AND #{criteria.shipDateTo}
+        </when>
+        <when test="criteria.shipDateFrom != null">
+          AND sh.ship_date &gt;= #{criteria.shipDateFrom}
+        </when>
+        <when test="criteria.shipDateTo != null">
+          AND sh.ship_date &lt;= #{criteria.shipDateTo}
+        </when>
+        <otherwise/>
+      </choose>
+    </where>
+    ORDER BY sh.ship_date DESC, sh.id DESC
+  </select>
+
+  <resultMap id="statusCountResultMap" type="StatusCount">
+    <result property="status" column="status"/>
+    <result property="count"  column="cnt"/>
+  </resultMap>
+
+  <!-- COUNT(*) の別名を cnt にしているのは、count が予約語と衝突しやすいため -->
+  <select id="countByStatus" resultMap="statusCountResultMap">
+    SELECT status, COUNT(*) AS cnt
+    FROM shipment
+    GROUP BY status
+    ORDER BY status
+  </select>
+
+  <select id="findMaxShipmentNo" resultType="string">
+    SELECT MAX(shipment_no) FROM shipment WHERE shipment_no LIKE #{prefix} || '%'
+  </select>
+
+  <!-- useGeneratedKeys で採番された ID が shipment.id へ書き戻される -->
+  <insert id="insertShipment" parameterType="Shipment" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO shipment (shipment_no, customer_name, warehouse_id, status, ship_date, remarks, created_at)
+    VALUES (#{shipmentNo}, #{customerName}, #{warehouseId}, #{status}, #{shipDate}, #{remarks}, CURRENT_TIMESTAMP)
+  </insert>
+
+  <!-- foreach で VALUES (...),(...),(...) を組み立てる = 明細のまとめINSERT -->
+  <insert id="insertDetails">
+    INSERT INTO shipment_detail (shipment_id, item_id, quantity)
+    VALUES
+    <foreach item="d" collection="details" separator=",">
+      (#{shipmentId}, #{d.itemId}, #{d.quantity})
+    </foreach>
+  </insert>
+
+  <update id="updateStatus">
+    UPDATE shipment SET status = #{status} WHERE id = #{id}
+  </update>
+
+  <delete id="deleteDetailsByShipmentId">
+    DELETE FROM shipment_detail WHERE shipment_id = #{shipmentId}
+  </delete>
+
+  <delete id="deleteById">
+    DELETE FROM shipment WHERE id = #{id}
+  </delete>
+
+</mapper>

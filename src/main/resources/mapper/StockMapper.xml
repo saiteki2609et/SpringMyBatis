@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  namespace は Mapper インタフェースの FQCN と完全一致させる。
+  ここがズレると "Invalid bound statement (not found)" という定番エラーになる。
+-->
+<mapper namespace="com.example.scm.mapper.StockMapper">
+
+  <!-- ============================================================
+       resultMap: SELECT の結果 → Java オブジェクトの対応付け
+       type="Item" と短く書けるのは application.yml の
+       mybatis.type-aliases-package でパッケージを登録しているため。
+       ============================================================ -->
+  <resultMap id="itemResultMap" type="Item">
+    <id     property="id"          column="id"/>
+    <result property="itemCode"    column="item_code"/>
+    <result property="itemName"    column="item_name"/>
+    <result property="category"    column="category"/>
+    <result property="unitPrice"   column="unit_price"/>
+    <result property="safetyStock" column="safety_stock"/>
+  </resultMap>
+
+  <resultMap id="warehouseResultMap" type="Warehouse">
+    <id     property="id"      column="id"/>
+    <result property="code"    column="code"/>
+    <result property="name"    column="name"/>
+    <result property="address" column="address"/>
+  </resultMap>
+
+  <!--
+    association = 1件ぶら下げる(多対一)。
+    columnPrefix="i_" を付けると、上の itemResultMap の column="item_code" が
+    実際には "i_item_code" 列を見に行く。JOIN で列名が衝突するときの定番テクニック。
+  -->
+  <resultMap id="stockResultMap" type="Stock">
+    <id     property="id"          column="id"/>
+    <result property="itemId"      column="item_id"/>
+    <result property="warehouseId" column="warehouse_id"/>
+    <result property="quantity"    column="quantity"/>
+    <result property="updatedAt"   column="updated_at"/>
+    <association property="item"      javaType="Item"      resultMap="itemResultMap"      columnPrefix="i_"/>
+    <association property="warehouse" javaType="Warehouse" resultMap="warehouseResultMap" columnPrefix="w_"/>
+  </resultMap>
+
+  <!-- ============================================================
+       <sql> + <include> で SELECT 句を使い回す
+       ============================================================ -->
+  <sql id="stockColumns">
+    s.id, s.item_id, s.warehouse_id, s.quantity, s.updated_at,
+    i.id          AS i_id,
+    i.item_code   AS i_item_code,
+    i.item_name   AS i_item_name,
+    i.category    AS i_category,
+    i.unit_price  AS i_unit_price,
+    i.safety_stock AS i_safety_stock,
+    w.id      AS w_id,
+    w.code    AS w_code,
+    w.name    AS w_name,
+    w.address AS w_address
+  </sql>
+
+  <sql id="stockFrom">
+    FROM stock s
+    INNER JOIN item      i ON i.id = s.item_id
+    INNER JOIN warehouse w ON w.id = s.warehouse_id
+  </sql>
+
+  <select id="findAll" resultMap="stockResultMap">
+    SELECT <include refid="stockColumns"/>
+    <include refid="stockFrom"/>
+    ORDER BY w.code, i.item_code
+  </select>
+
+  <!-- 引数が null かどうかで条件を出し分ける動的SQL -->
+  <select id="findByWarehouse" resultMap="stockResultMap">
+    SELECT <include refid="stockColumns"/>
+    <include refid="stockFrom"/>
+    <where>
+      <if test="warehouseId != null">
+        AND s.warehouse_id = #{warehouseId}
+      </if>
+    </where>
+    ORDER BY w.code, i.item_code
+  </select>
+
+  <select id="findByItemAndWarehouse" resultMap="stockResultMap">
+    SELECT <include refid="stockColumns"/>
+    <include refid="stockFrom"/>
+    WHERE s.item_id = #{itemId}
+      AND s.warehouse_id = #{warehouseId}
+  </select>
+
+  <select id="findBelowSafetyStock" resultMap="stockResultMap">
+    SELECT <include refid="stockColumns"/>
+    <include refid="stockFrom"/>
+    WHERE s.quantity &lt; i.safety_stock
+    ORDER BY (i.safety_stock - s.quantity) DESC
+  </select>
+
+  <!--
+    在庫引当。WHERE に quantity >= #{quantity} を入れているので
+    在庫不足なら 0 件更新になり、サービス層で例外にできる。
+    XML 内の "<" は &lt; に、">" はそのままでも書けるが &gt; が安全。
+  -->
+  <update id="decrease">
+    UPDATE stock
+       SET quantity = quantity - #{quantity},
+           updated_at = CURRENT_TIMESTAMP
+     WHERE item_id = #{itemId}
+       AND warehouse_id = #{warehouseId}
+       AND quantity &gt;= #{quantity}
+  </update>
+
+  <update id="increase">
+    UPDATE stock
+       SET quantity = quantity + #{quantity},
+           updated_at = CURRENT_TIMESTAMP
+     WHERE item_id = #{itemId}
+       AND warehouse_id = #{warehouseId}
+  </update>
+
+  <insert id="insert" parameterType="Stock" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO stock (item_id, warehouse_id, quantity, updated_at)
+    VALUES (#{itemId}, #{warehouseId}, #{quantity}, CURRENT_TIMESTAMP)
+  </insert>
+
+</mapper>
