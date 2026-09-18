@@ -165,6 +165,37 @@ class ShipmentServiceTest {
     }
 
     @Test
+    @DisplayName("出荷済の出荷指示は削除できない(出荷実績として残す)")
+    void cannotDeleteShippedShipment() {
+        Shipment created = shipmentService.create(newShipment(List.of(detail(ITEM_CABLE, 1))));
+        shipmentService.allocate(created.getId());
+        shipmentService.ship(created.getId());
+
+        assertThatThrownBy(() -> shipmentService.delete(created.getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("削除できません");
+
+        // 削除されずに残っている
+        assertThat(shipmentService.findById(created.getId()).getStatus()).isEqualTo(ShipmentStatus.SHIPPED);
+    }
+
+    @Test
+    @DisplayName("引当済を削除すると在庫が戻る")
+    void deleteAllocatedShipmentRestoresStock() {
+        int before = quantityOf(ITEM_CABLE);
+        Shipment created = shipmentService.create(newShipment(List.of(detail(ITEM_CABLE, 6))));
+        shipmentService.allocate(created.getId());
+        assertThat(quantityOf(ITEM_CABLE)).isEqualTo(before - 6);
+
+        shipmentService.delete(created.getId());
+
+        assertThat(quantityOf(ITEM_CABLE)).isEqualTo(before);
+        assertThatThrownBy(() -> shipmentService.findById(created.getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("見つかりません");
+    }
+
+    @Test
     @DisplayName("明細が空なら登録できない")
     void createRejectsEmptyDetails() {
         assertThatThrownBy(() -> shipmentService.create(newShipment(List.of())))

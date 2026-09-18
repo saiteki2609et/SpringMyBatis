@@ -146,10 +146,18 @@ public class ShipmentService {
         return shipment;
     }
 
-    /** 削除。引当済みなら在庫を戻してから消す(明細は ON DELETE CASCADE で消える)。 */
+    /**
+     * 削除。引当済みなら在庫を戻してから消す(明細は ON DELETE CASCADE でも消えるが明示的に削除する)。
+     *
+     * <p>出荷済は出荷実績として残す必要があるため削除させない。
+     * 誤登録を取り下げたい場合は取消({@link #cancel(Integer)})を使う。
+     */
     @Transactional
     public void delete(Integer id) {
         Shipment shipment = findById(id);
+        if (shipment.getStatus() == ShipmentStatus.SHIPPED) {
+            throw new BusinessException("出荷済の出荷指示は削除できません");
+        }
         if (shipment.getStatus() == ShipmentStatus.ALLOCATED) {
             for (ShipmentDetail detail : shipment.getDetails()) {
                 stockMapper.increase(detail.getItemId(), shipment.getWarehouseId(), detail.getQuantity());
