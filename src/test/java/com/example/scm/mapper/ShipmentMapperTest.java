@@ -13,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
 
+import com.example.scm.domain.Item;
 import com.example.scm.domain.Shipment;
 import com.example.scm.domain.ShipmentDetail;
 import com.example.scm.domain.ShipmentSearchCriteria;
@@ -44,10 +45,17 @@ class ShipmentMapperTest {
         assertThat(shipment).isNotNull();
         assertThat(shipment.getShipmentNo()).isNotBlank();
         assertThat(shipment.getWarehouse()).isNotNull();
+        assertThat(shipment.getWarehouse().getAddress()).isNotBlank();
         assertThat(shipment.getDetails()).isNotEmpty();
-        // 明細の中の商品(入れ子の association)までマッピングされている
-        assertThat(shipment.getDetails().get(0).getItem()).isNotNull();
-        assertThat(shipment.getDetails().get(0).getItem().getItemName()).isNotBlank();
+        // 明細の中の商品(入れ子の association)まで、全項目がマッピングされている
+        Item item = shipment.getDetails().get(0).getItem();
+        assertThat(item).isNotNull();
+        assertThat(item.getItemCode()).isNotBlank();
+        assertThat(item.getItemName()).isNotBlank();
+        assertThat(item.getCategory()).isNotBlank();
+        assertThat(item.getUnitPrice()).isNotNull();
+        assertThat(item.getSafetyStock()).isNotNull();
+        assertThat(item.getCreatedAt()).isNotNull();
     }
 
     @Test

@@ -13,6 +13,11 @@
        type="Item" と短く書けるのは application.yml の
        mybatis.type-aliases-package でパッケージを登録しているため。
        ============================================================ -->
+  <!--
+    Item の全プロパティを対応付ける。
+    一部だけマッピングすると、JSON や画面で「値があるのに null」に見えて混乱するため、
+    このアプリでは入れ子にする Item は常に全項目を取得する方針にしている。
+  -->
   <resultMap id="itemResultMap" type="Item">
     <id     property="id"          column="id"/>
     <result property="itemCode"    column="item_code"/>
@@ -20,6 +25,7 @@
     <result property="category"    column="category"/>
     <result property="unitPrice"   column="unit_price"/>
     <result property="safetyStock" column="safety_stock"/>
+    <result property="createdAt"   column="created_at"/>
   </resultMap>
 
   <resultMap id="warehouseResultMap" type="Warehouse">
@@ -55,6 +61,7 @@
     i.category    AS i_category,
     i.unit_price  AS i_unit_price,
     i.safety_stock AS i_safety_stock,
+    i.created_at  AS i_created_at,
     w.id      AS w_id,
     w.code    AS w_code,
     w.name    AS w_name,

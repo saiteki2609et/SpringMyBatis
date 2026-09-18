@@ -4,18 +4,22 @@
 
 <mapper namespace="com.example.scm.mapper.ShipmentMapper">
 
+  <!-- 入れ子にするオブジェクトは、一部だけ null になって混乱しないよう全項目を対応付ける -->
   <resultMap id="itemResultMap" type="Item">
-    <id     property="id"        column="id"/>
-    <result property="itemCode"  column="item_code"/>
-    <result property="itemName"  column="item_name"/>
-    <result property="category"  column="category"/>
-    <result property="unitPrice" column="unit_price"/>
+    <id     property="id"          column="id"/>
+    <result property="itemCode"    column="item_code"/>
+    <result property="itemName"    column="item_name"/>
+    <result property="category"    column="category"/>
+    <result property="unitPrice"   column="unit_price"/>
+    <result property="safetyStock" column="safety_stock"/>
+    <result property="createdAt"   column="created_at"/>
   </resultMap>
 
   <resultMap id="warehouseResultMap" type="Warehouse">
-    <id     property="id"   column="id"/>
-    <result property="code" column="code"/>
-    <result property="name" column="name"/>
+    <id     property="id"      column="id"/>
+    <result property="code"    column="code"/>
+    <result property="name"    column="name"/>
+    <result property="address" column="address"/>
   </resultMap>
 
   <!--
@@ -69,7 +73,7 @@
   <sql id="shipmentHeaderColumns">
     sh.id, sh.shipment_no, sh.customer_name, sh.warehouse_id, sh.status,
     sh.ship_date, sh.remarks, sh.created_at,
-    w.id AS w_id, w.code AS w_code, w.name AS w_name
+    w.id AS w_id, w.code AS w_code, w.name AS w_name, w.address AS w_address
   </sql>
 
   <!-- ヘッダ＋明細＋商品を 1回の SQL(JOIN) で取得 = N+1 問題を避ける書き方 -->
@@ -80,11 +84,13 @@
       d.shipment_id AS d_shipment_id,
       d.item_id     AS d_item_id,
       d.quantity    AS d_quantity,
-      i.id          AS d_i_id,
-      i.item_code   AS d_i_item_code,
-      i.item_name   AS d_i_item_name,
-      i.category    AS d_i_category,
-      i.unit_price  AS d_i_unit_price
+      i.id           AS d_i_id,
+      i.item_code    AS d_i_item_code,
+      i.item_name    AS d_i_item_name,
+      i.category     AS d_i_category,
+      i.unit_price   AS d_i_unit_price,
+      i.safety_stock AS d_i_safety_stock,
+      i.created_at   AS d_i_created_at
     FROM shipment sh
     INNER JOIN warehouse w ON w.id = sh.warehouse_id
     LEFT  JOIN shipment_detail d ON d.shipment_id = sh.id

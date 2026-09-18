@@ -32,10 +32,18 @@ class StockMapperTest {
 
         assertThat(stocks).isNotEmpty();
         Stock first = stocks.get(0);
+        // 入れ子の Item / Warehouse は全項目がマッピングされること(一部だけ null にならない)
         assertThat(first.getItem()).isNotNull();
         assertThat(first.getItem().getItemCode()).isNotBlank();
+        assertThat(first.getItem().getItemName()).isNotBlank();
+        assertThat(first.getItem().getCategory()).isNotBlank();
+        assertThat(first.getItem().getUnitPrice()).isNotNull();
+        assertThat(first.getItem().getSafetyStock()).isNotNull();
+        assertThat(first.getItem().getCreatedAt()).isNotNull();
         assertThat(first.getWarehouse()).isNotNull();
+        assertThat(first.getWarehouse().getCode()).isNotBlank();
         assertThat(first.getWarehouse().getName()).isNotBlank();
+        assertThat(first.getWarehouse().getAddress()).isNotBlank();
     }
 
     @Test
