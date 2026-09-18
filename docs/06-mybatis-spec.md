@@ -135,6 +135,13 @@ namespace: `com.example.scm.mapper.StockMapper`
 | `columnPrefix` | JOIN 時の列名衝突を回避。`i_` を付けると `itemResultMap` の `item_code` は `i_item_code` 列を見る |
 | `<sql>` / `<include>` | SELECT 句・FROM 句の共通化 |
 
+> **入れ子オブジェクトのマッピング方針**
+> 本アプリでは、`association` / `collection` でぶら下げる `Item` / `Warehouse` は
+> **全プロパティを対応付ける**方針にしている。
+> 一部の列だけをマッピングすると、JSON や画面で「DB には値があるのに null」という状態になり
+> 原因調査に時間を取られるため。
+> (取得列を絞るのは性能上有効な手段だが、その場合は「どの項目が入らないか」を明示すること)
+
 ### 在庫減算 SQL(重要)
 
 ```sql

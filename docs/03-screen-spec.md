@@ -252,7 +252,7 @@ Bean Validation のエラーは、各入力項目の直下に赤字で表示す�
 | 出荷確定(Ajax) | `POST /api/shipments/{id}/ship` | 同上 |
 | 取消(Ajax) | `POST /api/shipments/{id}/cancel` | 同上 |
 | 引当(POST) | `POST /shipments/{id}/allocate` | 通常のフォーム POST。画面遷移あり(学習用に併記) |
-| 削除 | `POST /shipments/{id}/delete` | `confirm` 確認後、SC-06 へ遷移 |
+| 削除 | `POST /shipments/{id}/delete` | `confirm` 確認後に削除し、SC-06 へ遷移。**出荷済の場合はエラー**となり、本画面にエラーメッセージを表示して留まる |
 | この出荷指示の JSON を見る | `GET /api/shipments/{id}` | 別タブで JSON を表示 |
 
 - Ajax 実行時のメッセージは画面上部の専用領域(`#ajaxOk` / `#ajaxError`)に表示する。

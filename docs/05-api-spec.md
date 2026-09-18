@@ -118,7 +118,7 @@ GET /api/stocks
     "id": 1,
     "itemId": 1,
     "warehouseId": 1,
-    "quantity": 120,
+    "quantity": 110,
     "updatedAt": "2026-09-17T15:28:02.173452",
     "item": {
       "id": 1,
@@ -127,7 +127,7 @@ GET /api/stocks
       "category": "ネットワーク機器",
       "unitPrice": 18500.00,
       "safetyStock": 30,
-      "createdAt": null
+      "createdAt": "2026-09-17T15:28:02.173452"
     },
     "warehouse": {
       "id": 1,
@@ -143,7 +143,7 @@ GET /api/stocks
 | フィールド | 説明 |
 |---|---|
 | belowSafetyStock | 在庫数が安全在庫を下回っているか。Java 側の判定メソッドの戻り値 |
-| item.createdAt | SELECT 対象外のため常に `null`(resultMap でマッピングしていない) |
+| item / warehouse | JOIN して取得したマスタ情報。**全項目がマッピングされる**(一部だけ null にはならない) |
 
 - 並び順: 倉庫コード → 商品コード
 
@@ -208,7 +208,7 @@ GET /api/shipments/{id}
   "shipDate": "2026-09-01",
   "remarks": "定期補充",
   "createdAt": "2026-09-17T15:28:02.204678",
-  "warehouse": { "id": 1, "code": "WH01", "name": "東京物流センター", "address": null },
+  "warehouse": { "id": 1, "code": "WH01", "name": "東京物流センター", "address": "東京都江東区新木場1-1-1" },
   "details": [
     {
       "id": 1,
@@ -221,8 +221,8 @@ GET /api/shipments/{id}
         "itemName": "光回線ルーター RX-100",
         "category": "ネットワーク機器",
         "unitPrice": 18500.00,
-        "safetyStock": null,
-        "createdAt": null
+        "safetyStock": 30,
+        "createdAt": "2026-09-17T15:28:02.173452"
       }
     }
   ],
@@ -234,7 +234,7 @@ GET /api/shipments/{id}
 |---|---|
 | status | enum 名(`DRAFT` / `ALLOCATED` / `SHIPPED` / `CANCELLED`)。**DB のコード値(10/20/30/90)ではない** |
 | totalQuantity | 明細数量の合計。Java 側で算出 |
-| warehouse.address, item.safetyStock, item.createdAt | SELECT 対象外のため `null` |
+| warehouse / details[].item | JOIN して取得したマスタ情報。**全項目がマッピングされる** |
 
 ### エラー
 

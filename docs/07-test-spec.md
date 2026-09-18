@@ -29,12 +29,12 @@
 ### 実行方法
 
 ```powershell
-mvn test                                    # 全件(34件)
+mvn test                                    # 全件(36件)
 mvn test -Dtest=ShipmentMapperTest          # クラス指定
 mvn test -Dtest=ShipmentServiceTest#allocateRollsBackWhenStockIsShort   # メソッド指定
 ```
 
-## 7.2 テストケース一覧(全34件)
+## 7.2 テストケース一覧(全36件)
 
 ### 7.2.1 ItemMapperTest(7件)― アノテーション方式 Mapper
 
@@ -52,7 +52,7 @@ mvn test -Dtest=ShipmentServiceTest#allocateRollsBackWhenStockIsShort   # メソ
 
 | # | テストケース | 確認内容 |
 |---|---|---|
-| 1 | association: JOIN した商品・倉庫がネストしたオブジェクトに入る | `stock.item` / `stock.warehouse` が非 null |
+| 1 | association: JOIN した商品・倉庫がネストしたオブジェクトに入る | `stock.item` / `stock.warehouse` の**全項目**が非 null(一部だけ null にならないこと) |
 | 2 | 動的SQL: 倉庫IDが null なら全件、指定すれば絞り込まれる | 件数と倉庫IDの一致 |
 | 3 | 在庫を減らせたときは更新件数1が返る | 数量が指定分だけ減少 |
 | 4 | 在庫不足のときは更新件数0が返り、数量は変化しない | `WHERE quantity >= ?` の効果 |
@@ -63,7 +63,7 @@ mvn test -Dtest=ShipmentServiceTest#allocateRollsBackWhenStockIsShort   # メソ
 
 | # | テストケース | 確認内容 |
 |---|---|---|
-| 1 | collection: ヘッダ1件に明細N件がぶら下がる | `details` が非空、明細内の `item` までマッピング |
+| 1 | collection: ヘッダ1件に明細N件がぶら下がる | `details` が非空、明細内の `item` の**全項目**と `warehouse.address` までマッピング |
 | 2 | TypeHandler: DBのコード値('30')が enum に変換される | JdbcTemplate で取得した生の値と enum のコードが一致 |
 | 3 | 動的SQL: ステータス複数指定は IN 句になる(foreach) | 結果が指定ステータスのみ |
 | 4 | 動的SQL: 条件なしなら全件返る | `COUNT(*)` と同件数 |
@@ -81,7 +81,7 @@ mvn test -Dtest=ShipmentServiceTest#allocateRollsBackWhenStockIsShort   # メソ
 | 4 | 商品コードが重複すると業務エラーになる | `BusinessException`「重複」 |
 | 5 | 在庫から参照されている商品は削除できない | `BusinessException`「使用中」(外部キー制約の変換) |
 
-### 7.2.5 ShipmentServiceTest(8件)― 出荷業務・トランザクション
+### 7.2.5 ShipmentServiceTest(10件)― 出荷業務・トランザクション
 
 | # | テストケース | 確認内容 |
 |---|---|---|
@@ -92,7 +92,9 @@ mvn test -Dtest=ShipmentServiceTest#allocateRollsBackWhenStockIsShort   # メソ
 | 5 | 引当済を取消すると在庫が戻る | 取消後、在庫が引当前の値に復帰 |
 | 6 | 登録済のまま出荷しようとするとエラーになる | `BusinessException`「引当済」 |
 | 7 | 引当 → 出荷 の順なら出荷済にできる | status=出荷済、その後の取消はエラー |
-| 8 | 明細が空なら登録できない | `BusinessException`「明細」 |
+| 8 | 出荷済の出荷指示は削除できない | `BusinessException`「削除できません」、削除されず出荷済のまま残る |
+| 9 | 引当済を削除すると在庫が戻る | 在庫が削除前の値に復帰し、伝票は取得できなくなる |
+| 10 | 明細が空なら登録できない | `BusinessException`「明細」 |
 
 > **#4 が本アプリで最も重要なテスト。**
 > 1行目(引当可能)と2行目(在庫超過)を持つ出荷指示を引き当て、
@@ -132,3 +134,4 @@ mvn test -Dtest=ShipmentServiceTest#allocateRollsBackWhenStockIsShort   # メソ
 | 8 | 在庫数を超える数量の出荷指示を作成し引当 | 「在庫が不足しています」が表示され、**在庫が1つも減っていない** |
 | 9 | 引当済の出荷指示を取消 | バッジが「取消」に変わり、在庫が元に戻る |
 | 10 | 出荷済の出荷指示を取消 | 「出荷済の出荷指示は取消できません」が表示される |
+| 11 | 出荷済の出荷指示を削除 | 「出荷済の出荷指示は削除できません」が表示され、伝票は残る |
