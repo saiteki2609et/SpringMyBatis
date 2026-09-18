@@ -1,5 +1,9 @@
 # 08. 環境構築・運用
 
+本書は**構築済み環境の設定値と運用手順**をまとめた参照資料です。
+新しい PC でゼロから構築する場合は、STEP 形式の
+[09-environment-setup.md(環境構築手順書)](09-environment-setup.md) を使ってください。
+
 ## 8.1 前提環境
 
 | ツール | バージョン | 構築済みの場所(この PC) |
@@ -17,6 +21,8 @@
 | `Path` | 上記2つの `\bin` を追加 |
 
 ### 別環境で構築する場合
+
+手順の詳細は [09-environment-setup.md](09-environment-setup.md) を参照。要点は以下のとおり。
 
 ```powershell
 winget install --id EclipseAdoptium.Temurin.21.JDK
