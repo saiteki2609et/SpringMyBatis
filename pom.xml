@@ -69,6 +69,68 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
+
+      <!--
+        テストカバレッジ計測(JaCoCo)。
+        prepare-agent でテスト実行時に計測エージェントを仕込み、
+        report でレポートを生成する。
+
+          mvn test   → target/site/jacoco/index.html をブラウザで開く
+          mvn verify → 上に加えてカバレッジの下限チェック(jacoco:check)も実行
+
+        計測対象から外しているもの:
+          - domain / 検索条件クラス … getter/setter が大半で、率が実態より高く出てしまうため
+          - 起動クラス             … テスト対象ではないため
+      -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.12</version>
+        <configuration>
+          <excludes>
+            <exclude>com/example/scm/domain/**</exclude>
+            <exclude>com/example/scm/ScmStudyApplication.class</exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+          <!-- 下限を割ったらビルドを失敗させる(学習用に緩めの設定) -->
+          <execution>
+            <id>check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <!-- 現状の実測値は約 54%。これ以上下げないための下限として 0.50 を設定 -->
+                      <minimum>0.50</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 </project>

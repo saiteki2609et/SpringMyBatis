@@ -109,7 +109,50 @@ mvn test -Dtest=ShipmentServiceTest#allocateRollsBackWhenStockIsShort   # メソ
 
 - `ItemService` は `@MockBean` で差し替え、DB には接続しない。
 
-## 7.3 テスト対象外
+## 7.3 カバレッジ
+
+### 確認方法
+
+| 方法 | 手順 | 出力先 |
+|---|---|---|
+| Maven | `mvn test` を実行 | `target/site/jacoco/index.html` をブラウザで開く |
+| Maven(下限チェックつき) | `mvn verify` を実行 | 下限を割るとビルド失敗。`jacoco.csv` / `jacoco.xml` も生成される |
+| VS Code | テストビューの「Run Tests with Coverage」 | エディタ上で行を色分け＋Test Coverage ビューに一覧 |
+
+- 計測は JaCoCo(`jacoco-maven-plugin`)による。設定は `pom.xml`。
+- `mvn verify` は行カバレッジ **50% 未満でビルド失敗**する設定にしている(現状維持のための下限)。
+- 計測対象外: `domain` パッケージ(getter/setter が大半で率が実態より高く出るため)、起動クラス。
+
+> **注意**: アプリを起動したまま `mvn package` / `mvn verify` を実行すると、
+> jar がロックされていて `Unable to rename ... .jar.original` で失敗する。先にアプリを停止する。
+
+### 実測値(36件のテスト実行時)
+
+全体の行カバレッジ **53.8%**(163/303 行)。
+
+| 層 | クラス | 行カバレッジ |
+|---|---|---|
+| Service | `ShipmentService` | 90.6% |
+| Service | `ItemService` | 54.5% |
+| Service | `StockService` | 20.0% |
+| TypeHandler | `ShipmentStatusTypeHandler` | 71.4% |
+| Config | `H2ConsoleConfig` | 92.3% |
+| Web(API) | `ItemApiController` | 100% |
+| Web(API) | `ShipmentApiController` | 30.0% |
+| Web(API) | `StockApiController` | 50.0% |
+| Web(画面) | `StockController` | 55.6% |
+| Web(画面) | `DashboardController` | 50.0% |
+| Web(画面) | `ShipmentController` | 11.6% |
+| Web(画面) | `ItemController` | 7.9% |
+
+- **Mapper インタフェースは数値に現れない**。実装は MyBatis が動的プロキシで生成するため、
+  JaCoCo の計測対象クラスにならない。Mapper の検証はテスト件数(20件)で担保している。
+- 業務ロジックの中心である `ShipmentService` が 90.6% と高く、
+  画面用 Controller(`ItemController` 7.9%、`ShipmentController` 11.6%)が低い。
+  Controller は入出力の受け渡しが主で、手動確認(7.5)で代替しているため。
+  数値を上げるなら `@WebMvcTest` を画面用 Controller にも追加するのが順当。
+
+## 7.4 テスト対象外
 
 | 項目 | 理由 |
 |---|---|
@@ -118,7 +161,7 @@ mvn test -Dtest=ShipmentServiceTest#allocateRollsBackWhenStockIsShort   # メソ
 | `StockService#receive` の単体テスト | API 経由の手動確認で代替(今後追加する余地あり) |
 | 同時実行(排他制御) | 排他制御自体が未実装のため |
 
-## 7.4 手動確認手順(受入確認)
+## 7.5 手動確認手順(受入確認)
 
 アプリ起動後、以下を順に実施する。
 
