@@ -56,7 +56,17 @@ Maven Wrapper を使う場合は `mvn` を `.\mvnw.cmd` に置き換える。
 | 起動方法 | 停止 |
 |---|---|
 | ターミナルでフォアグラウンド起動 | `Ctrl + C` |
-| バックグラウンド起動 | `Get-Process java \| Stop-Process` |
+| バックグラウンド起動 | 下記のポート指定で停止する |
+
+```powershell
+# ポート 8080 を掴んでいるプロセスだけを止める
+Get-NetTCPConnection -LocalPort 8080 -State Listen |
+  ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
+
+> **`Get-Process java | Stop-Process` は使わないこと。**
+> VS Code の Java 言語サーバー(`redhat.java` が起動する JVM)まで巻き込んで終了させてしまい、
+> 拡張機能が不正な状態になることがある(コマンドの二重登録エラーなど)。
 
 ## 8.3 設定値一覧(application.yml)
 
@@ -158,6 +168,8 @@ SpringMyBatis/
 | 症状 | 原因 / 対処 |
 |---|---|
 | `java`/`mvn` が見つからない | 環境変数登録後に開いたターミナルを使う。または `.\mvnw.cmd` を使う |
+| `mvn package` が `Unable to rename ... .jar.original` で失敗 | アプリが起動中で jar がロックされている。先に停止する |
+| VS Code で `couldn't create connection to server` / `command 'sts.java...' already exists` | Spring Boot Tools(`vmware.vscode-spring-boot`)と `redhat.java` のコマンド二重登録。Spring Boot Tools を撤去するか無効化する(Java の定義ジャンプ等は `redhat.java` 側の機能なので影響なし) |
 | ポート 8080 が使用中 | `application.yml` の `server.port` を変更、または既存プロセスを停止 |
 | H2 コンソールで `Database "C:/Users/xxx/test" not found` | JDBC URL が H2 の初期値 `jdbc:h2:~/test` のまま。8.4 の URL に置き換える |
 | `Invalid bound statement (not found)` | [06-mybatis-spec.md](06-mybatis-spec.md) の「よくあるエラー」を参照 |
